@@ -160,16 +160,16 @@ jobs:
       uses: github/codeql-action/analyze@v3
       continue-on-error: true
 
-  # Job 4: Deploy to Staging (on main branch)
+  # Job 4: Deploy to Staging (on main branch) - Optional
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: [backend-test, frontend-test, security-scan]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
+
     environment:
       name: staging
-      url: https://dsa-chatbot-staging.vercel.app
+      url: https://dsa-mitra-staging.vercel.app
     
     steps:
     - name: Checkout code
@@ -190,6 +190,13 @@ jobs:
         cd frontend
         npm run build
     
+    - name: Prepare deployment artifacts
+      run: |
+        echo "📦 Build artifacts ready for deployment"
+        echo "Frontend build size:"
+        du -sh frontend/dist/ || echo "No dist folder found"
+        ls -la frontend/ || echo "Frontend folder not found"
+
     - name: Deploy to Vercel (Staging)
       uses: amondnet/vercel-action@v25
       with:
@@ -198,3 +205,18 @@ jobs:
         vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
         working-directory: ./frontend
         scope: ${{ secrets.VERCEL_ORG_ID }}
+      continue-on-error: true
+      if: secrets.VERCEL_TOKEN != ''
+
+    - name: Deployment status
+      run: |
+        if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+          echo "⚠️ Deployment skipped - VERCEL_TOKEN not configured"
+          echo "📝 To enable deployment:"
+          echo "   1. Go to repository Settings > Secrets and variables > Actions"
+          echo "   2. Add VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID"
+          echo "   3. Get these values from your Vercel dashboard"
+        else
+          echo "✅ Deployment attempted"
+          echo "🔗 Check deployment status at: https://dsa-mitra-staging.vercel.app"
+        fi
